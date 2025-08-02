@@ -7,6 +7,7 @@ import (
 
 type ParsedHeaders struct {
 	Directives map[string]map[string]string
+	Values     map[string]string
 }
 
 func parseDirectives(headerValue string) map[string]string {
@@ -32,19 +33,35 @@ func parseDirectives(headerValue string) map[string]string {
 	return result
 }
 
+var directiveHeaders = map[string]bool{
+	"cache-control": true,
+	"pragma":        true,
+	"warning":       true,
+}
+
 func NewParsedHeaders(h http.Header) *ParsedHeaders {
 	parsed := make(map[string]map[string]string)
+	values := make(map[string]string)
 
-	for name, values := range h {
-		if len(values) == 0 {
+	for name, headerValues := range h {
+		if len(headerValues) == 0 {
 			continue
 		}
 
-		fullValue := strings.Join(values, ", ")
-		parsed[strings.ToLower(name)] = parseDirectives(fullValue)
+		lowerName := strings.ToLower(name)
+		fullValue := strings.Join(headerValues, ", ")
+
+		if directiveHeaders[lowerName] {
+			parsed[lowerName] = parseDirectives(fullValue)
+		} else {
+			values[lowerName] = fullValue
+		}
 	}
 
-	return &ParsedHeaders{Directives: parsed}
+	return &ParsedHeaders{
+		Directives: parsed,
+		Values:     values,
+	}
 }
 
 func (p *ParsedHeaders) GetDirective(headerName, directive string) (string, bool) {
@@ -53,4 +70,9 @@ func (p *ParsedHeaders) GetDirective(headerName, directive string) (string, bool
 		return val, ok
 	}
 	return "", false
+}
+
+func (p *ParsedHeaders) GetValue(headerName string) (string, bool) {
+	val, ok := p.Values[strings.ToLower(headerName)]
+	return val, ok
 }

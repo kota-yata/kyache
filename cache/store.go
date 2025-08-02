@@ -11,6 +11,7 @@ type CachedResponse struct {
 	Header     http.Header
 	Body       []byte
 	StoredAt   time.Time
+	InitialAge int
 }
 
 type CacheStore struct {
@@ -35,10 +36,21 @@ func (cs *CacheStore) Set(key string, resp *CachedResponse) {
 	cs.store[key] = resp
 }
 
-func IsFresh(storedAt time.Time, maxAge int) bool {
-	if maxAge <= 0 {
+func IsCacheable(resp *http.Response) bool {
+	if resp.Request.Method != http.MethodGet {
 		return false
 	}
-	elapsed := time.Since(storedAt)
-	return elapsed < time.Duration(maxAge)*time.Second
+	headerStruct := NewParsedHeaders(resp.Header)
+	_, hasNoCache := headerStruct.GetDirective("Cache-Control", "no-cache")
+	if hasNoCache {
+		// TODO: Handle "no-cache" directive according to RFC 9111
+		// Need interpretation of the section 5.2.1.4.
+		return false
+	}
+	_, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
+	if hasNoStore {
+		return false // If "no-store" is present, the response is not cacheable
+	}
+	_, hasPrivate := headerStruct.GetDirective("Cache-Control", "private")
+	return !hasPrivate // If "private" is present, the response is cacheable only for the user
 }
