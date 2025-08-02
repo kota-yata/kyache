@@ -24,6 +24,14 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 			return time.Duration(seconds) * time.Second
 		}
 	}
+	// Cache-Control s-maxage
+	sMaxAge, hasSMaxAge := headerStruct.GetDirective("Cache-Control", "s-maxage")
+	if hasSMaxAge {
+		seconds, err := strconv.Atoi(sMaxAge)
+		if err == nil && seconds >= 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
 	// Normal case: Cache-Control max-age
 	maxAge, hasMaxAge := headerStruct.GetDirective("Cache-Control", "max-age")
 	if hasMaxAge {
