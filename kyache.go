@@ -184,7 +184,7 @@ func IsCacheable(resp *http.Response) bool {
 	_, hasNoCache := headerStruct.GetDirective("Cache-Control", "no-cache")
 	if hasNoCache {
 		// TODO: Handle "no-cache" directive according to RFC 9111
-		// For now, we treat it as not cacheable
+		// Need interpretation of the section 5.2.1.4.
 		return false
 	}
 	_, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
