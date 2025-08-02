@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	originURLStr = flag.String("originURL", "http://localhost:8888", "Origin server URL")
+	originURLStr = flag.String("originURL", "http://localhost:8000", "Origin server URL")
 	listenAddr   = flag.String("listenAddr", ":8889", "Address to listen on")
 )
 

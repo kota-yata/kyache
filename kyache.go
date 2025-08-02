@@ -51,7 +51,7 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if cache.IsCacheable(resp) {
+	if IsCacheable(resp) {
 		cs.storeCachedResponse(key, resp)
 	}
 
@@ -171,9 +171,18 @@ func (cs *CacheServer) fetchAndCache(w http.ResponseWriter, r *http.Request, ori
 	w.WriteHeader(resp.StatusCode)
 	w.Write(body)
 
-	if cache.IsCacheable(resp) {
+	if IsCacheable(resp) {
 		cs.cacheResponse(r.URL.String(), resp, body)
 	}
+}
+
+func IsCacheable(resp *http.Response) bool {
+	if resp.Request.Method != http.MethodGet {
+		return false
+	}
+	headerStruct := cache.NewParsedHeaders(resp.Header)
+	noStore, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
+	return !hasNoStore && noStore == "" // If "no-store" is not present, the response is cacheable
 }
 
 func (cs *CacheServer) buildOriginRequest(r *http.Request, originURL *url.URL) *http.Request {

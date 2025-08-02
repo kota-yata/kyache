@@ -1,5 +1,5 @@
 # Kyache
-RFC 9111 compliant HTTP cache server.
+RFC 9111 compliant HTTP shared cache library.
 
 ## Installation
 

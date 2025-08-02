@@ -25,7 +25,7 @@ func parseDirectives(headerValue string) map[string]string {
 			result[key] = value
 		} else {
 			key := strings.ToLower(directive)
-			result[key] = ""
+			result[key] = "" // No value provided, just the directive name
 		}
 	}
 

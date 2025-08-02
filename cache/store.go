@@ -2,7 +2,6 @@ package cache
 
 import (
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -42,13 +41,4 @@ func IsFresh(storedAt time.Time, maxAge int) bool {
 	}
 	elapsed := time.Since(storedAt)
 	return elapsed < time.Duration(maxAge)*time.Second
-}
-
-// Simple check based on Section 3, 5.2.2
-func IsCacheable(resp *http.Response) bool {
-	if resp.Request.Method != http.MethodGet {
-		return false
-	}
-	cc := resp.Header.Get("Cache-Control")
-	return !strings.Contains(cc, "no-store")
 }
