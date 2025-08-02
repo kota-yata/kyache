@@ -181,8 +181,18 @@ func IsCacheable(resp *http.Response) bool {
 		return false
 	}
 	headerStruct := cache.NewParsedHeaders(resp.Header)
-	noStore, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
-	return !hasNoStore && noStore == "" // If "no-store" is not present, the response is cacheable
+	_, hasNoCache := headerStruct.GetDirective("Cache-Control", "no-cache")
+	if hasNoCache {
+		// TODO: Handle "no-cache" directive according to RFC 9111
+		// For now, we treat it as not cacheable
+		return false
+	}
+	_, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
+	if hasNoStore {
+		return false // If "no-store" is present, the response is not cacheable
+	}
+	_, hasPrivate := headerStruct.GetDirective("Cache-Control", "private")
+	return !hasPrivate // If "private" is present, the response is cacheable only for the user
 }
 
 func (cs *CacheServer) buildOriginRequest(r *http.Request, originURL *url.URL) *http.Request {
