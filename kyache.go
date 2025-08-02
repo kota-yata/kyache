@@ -170,8 +170,6 @@ func (cs *CacheServer) cacheResponse(key string, resp *http.Response, body []byt
 	age, err := strconv.Atoi(resp.Header.Get("Age"))
 	if err != nil || age < 0 {
 		age = 0
-	} else {
-		log.Printf("Received valid Age from origin: %d seconds", age)
 	}
 	cached := &cache.CachedResponse{
 		StatusCode: resp.StatusCode,
