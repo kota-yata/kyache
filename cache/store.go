@@ -49,8 +49,25 @@ func IsCacheable(resp *http.Response) bool {
 	}
 	_, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
 	if hasNoStore {
-		return false // If "no-store" is present, the response is not cacheable
+		return false
 	}
 	_, hasPrivate := headerStruct.GetDirective("Cache-Control", "private")
-	return !hasPrivate // If "private" is present, the response is cacheable only for the user
+	if hasPrivate {
+		return false
+	}
+
+	_, hasCdnNoCache := headerStruct.GetDirective("CDN-Cache-Control", "no-cache")
+	if hasCdnNoCache {
+		// TODO: Handle "no-cache" directive according to RFC 9111
+		return false
+	}
+	_, hasCdnNoStore := headerStruct.GetDirective("CDN-Cache-Control", "no-store")
+	if hasCdnNoStore {
+		return false
+	}
+	_, hasCdnPrivate := headerStruct.GetDirective("CDN-Cache-Control", "private")
+	if hasCdnPrivate {
+		return false
+	}
+	return true
 }

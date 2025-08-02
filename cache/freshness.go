@@ -16,6 +16,15 @@ func IsFresh(resp *CachedResponse) bool {
 }
 
 func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
+	// CDN-Cache-Control
+	cdnMaxAge, hasCDNMaxAge := headerStruct.GetDirective("CDN-Cache-Control", "max-age")
+	if hasCDNMaxAge {
+		seconds, err := strconv.Atoi(cdnMaxAge)
+		if err == nil && seconds >= 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
+	// Normal case: Cache-Control max-age
 	maxAge, hasMaxAge := headerStruct.GetDirective("Cache-Control", "max-age")
 	if hasMaxAge {
 		seconds, err := strconv.Atoi(maxAge)
