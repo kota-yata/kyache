@@ -21,15 +21,12 @@ import (
 )
 
 func main() {
-    // Create cache server with default transport
     cache := kyache.New(&kyache.Config{})
     
-    // Create HTTP client with caching
     client := &http.Client{
         Transport: cache,
     }
     
-    // All GET requests will be cached automatically
     resp, err := client.Get("https://api.example.com/data")
     if err != nil {
         panic(err)
@@ -53,16 +50,12 @@ import (
 )
 
 func main() {
-    // Create cache server
     cache := kyache.New(&kyache.Config{})
-    
-    // Define origin server
+
     originURL, _ := url.Parse("http://localhost:8080")
     
-    // Create handler that caches responses from origin
     handler := cache.Handler(originURL)
     
-    // Start server
     log.Println("Cache server running on :8889")
     http.ListenAndServe(":8889", handler)
 }
