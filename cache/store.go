@@ -121,3 +121,11 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 	}
 	return true
 }
+
+func GenerateCacheKey(urlStr string, header *ParsedHeaders) string {
+	key := urlStr
+	if vary, hasVary := header.GetValue("Vary"); hasVary && vary[0] != "" {
+		key += "?vary?" + vary[0]
+	}
+	return key
+}
