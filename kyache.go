@@ -124,7 +124,10 @@ func (cs *CacheServer) serveCachedResponse(w http.ResponseWriter, r *http.Reques
 		return false
 	}
 
-	if !cache.IsFresh(cachedResp) {
+	reqHeaderStruct := cache.NewParsedHeaders(r.Header)
+	respHeader := cache.NewParsedHeaders(cachedResp.Header)
+
+	if !cache.IsFresh(cachedResp) || !cache.IsReqAllowedToUseCache(reqHeaderStruct, respHeader) {
 		return false
 	}
 
