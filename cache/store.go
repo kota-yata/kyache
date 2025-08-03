@@ -38,7 +38,7 @@ func (cs *CacheStore) Set(key string, resp *CachedResponse) {
 
 // Comparing stored header and request header. see Section 4.1 for the detail
 // Assuming whitespace removal, capital normalization are done beforehand
-func (cs *CacheStore) HeadersIdentical(storedHeader, incomingHeader *http.Header) bool {
+func HeadersIdentical(storedHeader, incomingHeader *http.Header) bool {
 	if len(*storedHeader) != len(*incomingHeader) {
 		return false
 	}
