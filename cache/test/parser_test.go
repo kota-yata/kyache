@@ -241,3 +241,115 @@ func TestMixedHeaderTypes(t *testing.T) {
 		t.Errorf("Cache-Control header should not be available as simple value")
 	}
 }
+
+func TestAuthorizationHeaderParsing(t *testing.T) {
+	tests := []struct {
+		name           string
+		headers        http.Header
+		expectedScheme string
+		expectedParams map[string]string
+	}{
+		{
+			name: "Basic Authorization",
+			headers: http.Header{
+				"Authorization": []string{"Basic YWxhZGRpbjpvcGVuc2VzYW1l"},
+			},
+			expectedScheme: "basic",
+			expectedParams: map[string]string{
+				"scheme":      "basic",
+				"credentials": "YWxhZGRpbjpvcGVuc2VzYW1l",
+			},
+		},
+		{
+			name: "Digest Authorization",
+			headers: http.Header{
+				"Authorization": []string{`Digest username="test", realm="example.com", nonce="abc123", response="def456"`},
+			},
+			expectedScheme: "digest",
+			expectedParams: map[string]string{
+				"scheme":   "digest",
+				"username": "test",
+				"realm":    "example.com",
+				"nonce":    "abc123",
+				"response": "def456",
+			},
+		},
+		{
+			name: "Bearer Authorization",
+			headers: http.Header{
+				"Authorization": []string{"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"},
+			},
+			expectedScheme: "bearer",
+			expectedParams: map[string]string{
+				"scheme":     "bearer",
+				"parameters": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+			},
+		},
+		{
+			name: "Complex Digest Authorization",
+			headers: http.Header{
+				"Authorization": []string{`Digest username="user@example.com", realm="Protected Area", uri="/secret", algorithm=MD5, nonce="7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v", nc=00000001, cnonce="f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ", qop=auth, response="6629fae49393a05397450978507c4ef1", opaque="5ccc069c403ebaf9f0171e9517f40e41"`},
+			},
+			expectedScheme: "digest",
+			expectedParams: map[string]string{
+				"scheme":    "digest",
+				"username":  "user@example.com",
+				"realm":     "Protected Area",
+				"uri":       "/secret",
+				"algorithm": "MD5",
+				"nonce":     "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v",
+				"nc":        "00000001",
+				"cnonce":    "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ",
+				"qop":       "auth",
+				"response":  "6629fae49393a05397450978507c4ef1",
+				"opaque":    "5ccc069c403ebaf9f0171e9517f40e41",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed := cache.NewParsedHeaders(tt.headers)
+			
+			scheme, exists := parsed.GetDirective("Authorization", "scheme")
+			if !exists {
+				t.Errorf("Authorization scheme not found")
+				return
+			}
+			
+			if scheme != tt.expectedScheme {
+				t.Errorf("Expected scheme %q, got %q", tt.expectedScheme, scheme)
+			}
+			
+			for key, expectedValue := range tt.expectedParams {
+				value, exists := parsed.GetDirective("Authorization", key)
+				if !exists {
+					t.Errorf("Authorization parameter %q not found", key)
+					continue
+				}
+				
+				if value != expectedValue {
+					t.Errorf("Expected %q=%q, got %q", key, expectedValue, value)
+				}
+			}
+		})
+	}
+}
+
+func TestAuthorizationHeaderCaseInsensitive(t *testing.T) {
+	headers := http.Header{
+		"authorization": []string{"Basic dGVzdDp0ZXN0"},
+	}
+	
+	parsed := cache.NewParsedHeaders(headers)
+	
+	scheme, exists := parsed.GetDirective("AUTHORIZATION", "scheme")
+	if !exists || scheme != "basic" {
+		t.Errorf("Expected basic scheme, got %q (exists: %v)", scheme, exists)
+	}
+	
+	credentials, exists := parsed.GetDirective("authorization", "credentials")
+	if !exists || credentials != "dGVzdDp0ZXN0" {
+		t.Errorf("Expected credentials, got %q (exists: %v)", credentials, exists)
+	}
+}

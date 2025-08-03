@@ -34,10 +34,54 @@ func parseDirectives(headerValue string) map[string]string {
 	return result
 }
 
+func parseAuthorizationHeader(headerValue string) map[string]string {
+	result := make(map[string]string)
+	
+	// Split on first space to separate auth-scheme from parameters
+	parts := strings.SplitN(headerValue, " ", 2)
+	if len(parts) < 2 {
+		return result
+	}
+	
+	scheme := strings.ToLower(strings.TrimSpace(parts[0]))
+	parameters := strings.TrimSpace(parts[1])
+	
+	result["scheme"] = scheme
+	
+	// For Basic auth, the parameter is just the credentials
+	if scheme == "basic" {
+		result["credentials"] = parameters
+		return result
+	}
+	
+	// For Digest and other auth schemes, parse as key-value pairs
+	if scheme == "digest" || strings.Contains(parameters, "=") {
+		// Parse comma-separated key-value pairs
+		pairs := strings.Split(parameters, ",")
+		for _, pair := range pairs {
+			pair = strings.TrimSpace(pair)
+			if parts := strings.SplitN(pair, "=", 2); len(parts) == 2 {
+				key := strings.ToLower(strings.TrimSpace(parts[0]))
+				value := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+				result[key] = value
+			}
+		}
+	} else {
+		// For other schemes, store the raw parameters
+		result["parameters"] = parameters
+	}
+	
+	return result
+}
+
 var directiveHeaders = map[string]bool{
 	"cache-control": true,
 	"pragma":        true,
 	"warning":       true,
+}
+
+var authorizationHeaders = map[string]bool{
+	"authorization": true,
 }
 
 func NewParsedHeaders(h http.Header) *ParsedHeaders {
@@ -54,6 +98,8 @@ func NewParsedHeaders(h http.Header) *ParsedHeaders {
 
 		if directiveHeaders[lowerName] {
 			parsed[lowerName] = parseDirectives(strings.Join(fullValue, ","))
+		} else if authorizationHeaders[lowerName] {
+			parsed[lowerName] = parseAuthorizationHeader(strings.Join(fullValue, " "))
 		} else {
 			values[lowerName] = fullValue
 		}
