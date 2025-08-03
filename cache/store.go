@@ -1,7 +1,9 @@
 package cache
 
 import (
+	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 )
@@ -39,50 +41,41 @@ func (cs *CacheStore) Set(key string, resp *CachedResponse) {
 
 // Comparing stored header and request header. see Section 4.1 for the detail
 // Assuming whitespace removal, capital normalization are done beforehand
-func HeadersIdentical(storedHeader, incomingHeader *http.Header) bool {
-	if len(*storedHeader) != len(*incomingHeader) {
+func HeadersMeetVaryConstraints(reqHeader, originalReqHeader, respHeader *ParsedHeaders) bool {
+	vary, hasVary := respHeader.GetValue("vary")
+	if !hasVary {
+		return true
+	}
+	log.Printf("Vary header found: %v", vary)
+	// If Vary header is "*", it means the response is not cacheable in the first place
+	// This should not happen in practice, but we handle it just in case
+	if vary[0] == "*" {
 		return false
 	}
-	storedHeaderStruct := NewParsedHeaders(*storedHeader)
-	incomingHeaderStruct := NewParsedHeaders(*incomingHeader)
-
-	if len(storedHeaderStruct.Directives) != len(incomingHeaderStruct.Directives) {
-		return false
-	}
-	for headerName, storedDirectives := range storedHeaderStruct.Directives {
-		incomingDirectives, exists := incomingHeaderStruct.Directives[headerName]
-		if !exists {
+	for _, field := range vary {
+		reqVal, reqOk := reqHeader.GetValue(field)
+		respVal, respOk := originalReqHeader.GetValue(field)
+		if !reqOk && !respOk {
+			continue
+		}
+		if reqOk != respOk {
 			return false
 		}
-		if len(storedDirectives) != len(incomingDirectives) {
+		if len(reqVal) != len(respVal) {
 			return false
 		}
-		for directive, storedValue := range storedDirectives {
-			incomingValue, exists := incomingDirectives[directive]
-			if !exists || storedValue != incomingValue {
+		sort.Strings(reqVal)
+		sort.Strings(respVal)
+		for i := range reqVal {
+			if reqVal[i] != respVal[i] {
 				return false
 			}
 		}
 	}
-
-	if len(storedHeaderStruct.Values) != len(incomingHeaderStruct.Values) {
-		return false
-	}
-	for headerName, storedValue := range storedHeaderStruct.Values {
-		incomingValue, exists := incomingHeaderStruct.Values[headerName]
-		if !exists || len(storedValue) != len(incomingValue) {
-			return false
-		}
-		// TODO: Compare multiple values
-		if storedValue[0] != incomingValue[0] {
-			return false
-		}
-	}
-
 	return true
 }
 
-func IsReqAllowedToUseCache(reqHeader, respHeader *ParsedHeaders) bool {
+func IsReqAllowedToUseCache(reqHeader, originalReqHeader, respHeader *ParsedHeaders) bool {
 	// When Authorization header is present, the request cannot be responded with cache unless
 	// any of public, must-revalidate, or s-maxage directive is present in the response header.
 	_, reqHasAuthorization := reqHeader.GetDirectives("Authorization")
@@ -93,6 +86,10 @@ func IsReqAllowedToUseCache(reqHeader, respHeader *ParsedHeaders) bool {
 		if !respHasPublic && !respHasMustRevalidate && !respHasSMaxAge {
 			return false
 		}
+	}
+
+	if !HeadersMeetVaryConstraints(reqHeader, originalReqHeader, respHeader) {
+		return false
 	}
 	return true
 }
@@ -141,8 +138,6 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 
 func GenerateCacheKey(urlStr string, header *ParsedHeaders) string {
 	key := urlStr
-	if vary, hasVary := header.GetValue("Vary"); hasVary && vary[0] != "" {
-		key += "?vary?" + vary[0]
-	}
+	// TODO: Append Vary header
 	return key
 }
