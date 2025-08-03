@@ -51,8 +51,10 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	if cache.IsCacheable(resp) {
-		cs.cacheResponseFromReader(key, resp)
+	respHeaderStruct := cache.NewParsedHeaders(resp.Header)
+
+	if cache.IsCacheable(resp.Request.Method, respHeaderStruct) {
+		cs.cacheResponseFromReader(key, resp, respHeaderStruct)
 	}
 
 	return resp, nil

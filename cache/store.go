@@ -81,37 +81,42 @@ func (cs *CacheStore) HeadersIdentical(storedHeader, incomingHeader *http.Header
 	return true
 }
 
-func IsCacheable(resp *http.Response) bool {
-	if resp.Request.Method != http.MethodGet {
+func IsCacheable(method string, header *ParsedHeaders) bool {
+	if method != http.MethodGet {
 		return false
 	}
-	headerStruct := NewParsedHeaders(resp.Header)
-	_, hasNoCache := headerStruct.GetDirective("Cache-Control", "no-cache")
+	_, hasNoCache := header.GetDirective("Cache-Control", "no-cache")
 	if hasNoCache {
 		// TODO: Handle "no-cache" directive according to RFC 9111
 		// Need interpretation of the section 5.2.1.4.
 		return false
 	}
-	_, hasNoStore := headerStruct.GetDirective("Cache-Control", "no-store")
+	_, hasNoStore := header.GetDirective("Cache-Control", "no-store")
 	if hasNoStore {
 		return false
 	}
-	_, hasPrivate := headerStruct.GetDirective("Cache-Control", "private")
+	_, hasPrivate := header.GetDirective("Cache-Control", "private")
 	if hasPrivate {
 		return false
 	}
 
-	_, hasCdnNoCache := headerStruct.GetDirective("CDN-Cache-Control", "no-cache")
+	_, hasCdnNoCache := header.GetDirective("CDN-Cache-Control", "no-cache")
 	if hasCdnNoCache {
 		// TODO: Handle "no-cache" directive according to RFC 9111
 		return false
 	}
-	_, hasCdnNoStore := headerStruct.GetDirective("CDN-Cache-Control", "no-store")
+	_, hasCdnNoStore := header.GetDirective("CDN-Cache-Control", "no-store")
 	if hasCdnNoStore {
 		return false
 	}
-	_, hasCdnPrivate := headerStruct.GetDirective("CDN-Cache-Control", "private")
+	_, hasCdnPrivate := header.GetDirective("CDN-Cache-Control", "private")
 	if hasCdnPrivate {
+		return false
+	}
+
+	vary, hasVary := header.GetValue("Vary")
+	if hasVary && vary[0] == "*" {
+		// Vary: * means the response is not cacheable
 		return false
 	}
 	return true
