@@ -100,6 +100,12 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 		return false
 	}
 
+	vary, hasVary := header.GetValue("Vary")
+	if hasVary && vary[0] == "*" {
+		// Vary: * means the response is not cacheable
+		return false
+	}
+
 	_, hasCdnNoCache := header.GetDirective("CDN-Cache-Control", "no-cache")
 	if hasCdnNoCache {
 		// TODO: Handle "no-cache" directive according to RFC 9111
