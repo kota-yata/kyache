@@ -61,7 +61,7 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 	return d
 }
 
-func GetAge(resp *CachedResponse) int {
+func GetAgeSinceStoredAt(resp *CachedResponse) int {
 	return int(time.Since(resp.StoredAt).Seconds())
 }
 

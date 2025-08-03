@@ -2,6 +2,7 @@ package cache
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -75,4 +76,16 @@ func (p *ParsedHeaders) GetDirective(headerName, directive string) (string, bool
 func (p *ParsedHeaders) GetValue(headerName string) ([]string, bool) {
 	val, ok := p.Values[strings.ToLower(headerName)]
 	return val, ok
+}
+
+func (p *ParsedHeaders) GetValidatedAge() int {
+	ageStr, hasAge := p.GetValue("Age")
+	age := 0
+	if hasAge {
+		ageInt, err := strconv.Atoi(ageStr[0])
+		if err == nil && ageInt > 0 {
+			age = ageInt
+		}
+	}
+	return age
 }
