@@ -42,7 +42,8 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 	key := cache.GenerateCacheKey(req.URL.String(), reqHeaderStruct)
 
 	if cachedResp, exists := cs.cacheStore.Get(key); exists {
-		if cache.IsFresh(cachedResp) {
+		respHeader := cache.NewParsedHeaders(cachedResp.Header)
+		if cache.IsFresh(cachedResp) && cache.IsReqAllowedToUseCache(reqHeaderStruct, respHeader) {
 			return cs.createResponseFromCache(cachedResp, req), nil
 		}
 	}
