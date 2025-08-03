@@ -103,11 +103,11 @@ func TestGetDirective(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			parsed := cache.NewParsedHeaders(tt.headers)
 			value, exists := parsed.GetDirective(tt.headerName, tt.directiveName)
-			
+
 			if exists != tt.expectedExists {
 				t.Errorf("GetDirective() exists = %v, want %v", exists, tt.expectedExists)
 			}
-			
+
 			if value != tt.expectedValue {
 				t.Errorf("GetDirective() value = %v, want %v", value, tt.expectedValue)
 			}
@@ -192,11 +192,11 @@ func TestGetValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			parsed := cache.NewParsedHeaders(tt.headers)
 			value, exists := parsed.GetValue(tt.headerName)
-			
+
 			if exists != tt.expectedExists {
 				t.Errorf("GetValue() exists = %v, want %v", exists, tt.expectedExists)
 			}
-			
+
 			if !reflect.DeepEqual(value, tt.expectedValue) {
 				t.Errorf("GetValue() value = %v, want %v", value, tt.expectedValue)
 			}
@@ -310,24 +310,30 @@ func TestAuthorizationHeaderParsing(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parsed := cache.NewParsedHeaders(tt.headers)
-			
+
+			_, exists := parsed.GetDirectives("Authorization")
+			if !exists {
+				t.Errorf("Authorization header not found")
+				return
+			}
+
 			scheme, exists := parsed.GetDirective("Authorization", "scheme")
 			if !exists {
 				t.Errorf("Authorization scheme not found")
 				return
 			}
-			
+
 			if scheme != tt.expectedScheme {
 				t.Errorf("Expected scheme %q, got %q", tt.expectedScheme, scheme)
 			}
-			
+
 			for key, expectedValue := range tt.expectedParams {
 				value, exists := parsed.GetDirective("Authorization", key)
 				if !exists {
 					t.Errorf("Authorization parameter %q not found", key)
 					continue
 				}
-				
+
 				if value != expectedValue {
 					t.Errorf("Expected %q=%q, got %q", key, expectedValue, value)
 				}
@@ -340,14 +346,14 @@ func TestAuthorizationHeaderCaseInsensitive(t *testing.T) {
 	headers := http.Header{
 		"authorization": []string{"Basic dGVzdDp0ZXN0"},
 	}
-	
+
 	parsed := cache.NewParsedHeaders(headers)
-	
+
 	scheme, exists := parsed.GetDirective("AUTHORIZATION", "scheme")
 	if !exists || scheme != "basic" {
 		t.Errorf("Expected basic scheme, got %q (exists: %v)", scheme, exists)
 	}
-	
+
 	credentials, exists := parsed.GetDirective("authorization", "credentials")
 	if !exists || credentials != "dGVzdDp0ZXN0" {
 		t.Errorf("Expected credentials, got %q (exists: %v)", credentials, exists)
