@@ -69,7 +69,11 @@ func (cs *CacheStore) HeadersIdentical(storedHeader, incomingHeader *http.Header
 	}
 	for headerName, storedValue := range storedHeaderStruct.Values {
 		incomingValue, exists := incomingHeaderStruct.Values[headerName]
-		if !exists || storedValue != incomingValue {
+		if !exists || len(storedValue) != len(incomingValue) {
+			return false
+		}
+		// TODO: Compare multiple values
+		if storedValue[0] != incomingValue[0] {
 			return false
 		}
 	}

@@ -7,7 +7,7 @@ import (
 
 type ParsedHeaders struct {
 	Directives map[string]map[string]string
-	Values     map[string]string
+	Values     map[string][]string
 }
 
 func parseDirectives(headerValue string) map[string]string {
@@ -41,7 +41,7 @@ var directiveHeaders = map[string]bool{
 
 func NewParsedHeaders(h http.Header) *ParsedHeaders {
 	parsed := make(map[string]map[string]string)
-	values := make(map[string]string)
+	values := make(map[string][]string)
 
 	for name, headerValues := range h {
 		if len(headerValues) == 0 {
@@ -49,10 +49,10 @@ func NewParsedHeaders(h http.Header) *ParsedHeaders {
 		}
 
 		lowerName := strings.ToLower(name)
-		fullValue := strings.Join(headerValues, ", ")
+		fullValue := headerValues
 
 		if directiveHeaders[lowerName] {
-			parsed[lowerName] = parseDirectives(fullValue)
+			parsed[lowerName] = parseDirectives(strings.Join(fullValue, ","))
 		} else {
 			values[lowerName] = fullValue
 		}
@@ -72,7 +72,7 @@ func (p *ParsedHeaders) GetDirective(headerName, directive string) (string, bool
 	return "", false
 }
 
-func (p *ParsedHeaders) GetValue(headerName string) (string, bool) {
+func (p *ParsedHeaders) GetValue(headerName string) ([]string, bool) {
 	val, ok := p.Values[strings.ToLower(headerName)]
 	return val, ok
 }

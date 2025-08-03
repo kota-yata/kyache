@@ -46,11 +46,11 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 	if !hasDate || !hasExp {
 		return 0
 	}
-	if dateStr == "" || expStr == "" {
+	if dateStr[0] == "" || expStr[0] == "" {
 		return 0
 	}
-	dateTime, err1 := http.ParseTime(dateStr)
-	expTime, err2 := http.ParseTime(expStr)
+	dateTime, err1 := http.ParseTime(dateStr[0])
+	expTime, err2 := http.ParseTime(expStr[0])
 	if err1 != nil || err2 != nil {
 		return 0
 	}
