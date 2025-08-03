@@ -36,24 +36,24 @@ func parseDirectives(headerValue string) map[string]string {
 
 func parseAuthorizationHeader(headerValue string) map[string]string {
 	result := make(map[string]string)
-	
+
 	// Split on first space to separate auth-scheme from parameters
 	parts := strings.SplitN(headerValue, " ", 2)
 	if len(parts) < 2 {
 		return result
 	}
-	
+
 	scheme := strings.ToLower(strings.TrimSpace(parts[0]))
 	parameters := strings.TrimSpace(parts[1])
-	
+
 	result["scheme"] = scheme
-	
+
 	// For Basic auth, the parameter is just the credentials
 	if scheme == "basic" {
 		result["credentials"] = parameters
 		return result
 	}
-	
+
 	// For Digest and other auth schemes, parse as key-value pairs
 	if scheme == "digest" || strings.Contains(parameters, "=") {
 		// Parse comma-separated key-value pairs
@@ -70,7 +70,7 @@ func parseAuthorizationHeader(headerValue string) map[string]string {
 		// For other schemes, store the raw parameters
 		result["parameters"] = parameters
 	}
-	
+
 	return result
 }
 
