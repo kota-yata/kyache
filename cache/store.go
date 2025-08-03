@@ -36,6 +36,47 @@ func (cs *CacheStore) Set(key string, resp *CachedResponse) {
 	cs.store[key] = resp
 }
 
+// Comparing stored header and request header. see Section 4.1 for the detail
+// Assuming whitespace removal, capital normalization are done beforehand
+func (cs *CacheStore) HeadersIdentical(storedHeader, incomingHeader *http.Header) bool {
+	if len(*storedHeader) != len(*incomingHeader) {
+		return false
+	}
+	storedHeaderStruct := NewParsedHeaders(*storedHeader)
+	incomingHeaderStruct := NewParsedHeaders(*incomingHeader)
+
+	if len(storedHeaderStruct.Directives) != len(incomingHeaderStruct.Directives) {
+		return false
+	}
+	for headerName, storedDirectives := range storedHeaderStruct.Directives {
+		incomingDirectives, exists := incomingHeaderStruct.Directives[headerName]
+		if !exists {
+			return false
+		}
+		if len(storedDirectives) != len(incomingDirectives) {
+			return false
+		}
+		for directive, storedValue := range storedDirectives {
+			incomingValue, exists := incomingDirectives[directive]
+			if !exists || storedValue != incomingValue {
+				return false
+			}
+		}
+	}
+
+	if len(storedHeaderStruct.Values) != len(incomingHeaderStruct.Values) {
+		return false
+	}
+	for headerName, storedValue := range storedHeaderStruct.Values {
+		incomingValue, exists := incomingHeaderStruct.Values[headerName]
+		if !exists || storedValue != incomingValue {
+			return false
+		}
+	}
+
+	return true
+}
+
 func IsCacheable(resp *http.Response) bool {
 	if resp.Request.Method != http.MethodGet {
 		return false
