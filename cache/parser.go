@@ -119,6 +119,13 @@ func (p *ParsedHeaders) GetDirective(headerName, directive string) (string, bool
 	return "", false
 }
 
+func (p *ParsedHeaders) GetDirectives(headerName string) (map[string]string, bool) {
+	if h, ok := p.Directives[strings.ToLower(headerName)]; ok {
+		return h, true
+	}
+	return nil, false
+}
+
 func (p *ParsedHeaders) GetValue(headerName string) ([]string, bool) {
 	val, ok := p.Values[strings.ToLower(headerName)]
 	return val, ok
