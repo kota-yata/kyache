@@ -9,7 +9,7 @@ import (
 // see freshness.md for what this functions do
 
 func IsFresh(resp *CachedResponse) bool {
-	headerStruct := NewParsedHeaders(resp.Header)
+	headerStruct := NewParsedHeaders(resp.ResponseHeader)
 	freshFor := GetFreshnessLifetime(headerStruct)
 	currentAge := time.Duration(GetCurrentAge(resp)) * time.Second
 	return freshFor > 0 && currentAge < freshFor

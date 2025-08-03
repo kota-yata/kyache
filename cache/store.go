@@ -7,11 +7,12 @@ import (
 )
 
 type CachedResponse struct {
-	StatusCode int
-	Header     http.Header
-	Body       []byte
-	StoredAt   time.Time
-	InitialAge int
+	StatusCode     int
+	RequestHeader  http.Header
+	ResponseHeader http.Header
+	Body           []byte
+	StoredAt       time.Time
+	InitialAge     int
 }
 
 type CacheStore struct {

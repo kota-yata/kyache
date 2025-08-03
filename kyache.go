@@ -42,8 +42,9 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 	key := cache.GenerateCacheKey(req.URL.String(), reqHeaderStruct)
 
 	if cachedResp, exists := cs.cacheStore.Get(key); exists {
-		respHeader := cache.NewParsedHeaders(cachedResp.Header)
-		if cache.IsFresh(cachedResp) && cache.IsReqAllowedToUseCache(reqHeaderStruct, respHeader) {
+		respHeader := cache.NewParsedHeaders(cachedResp.ResponseHeader)
+		originalReqHeaderStruct := cache.NewParsedHeaders(cachedResp.RequestHeader)
+		if cache.IsFresh(cachedResp) && cache.IsReqAllowedToUseCache(reqHeaderStruct, originalReqHeaderStruct, respHeader) {
 			return cs.createResponseFromCache(cachedResp, req), nil
 		}
 	}
@@ -56,7 +57,7 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 	respHeaderStruct := cache.NewParsedHeaders(resp.Header)
 
 	if cache.IsCacheable(resp.Request.Method, respHeaderStruct) {
-		cs.cacheResponseFromReader(key, resp, respHeaderStruct)
+		cs.cacheResponseFromReader(key, req, resp, respHeaderStruct)
 	}
 
 	return resp, nil
@@ -65,7 +66,7 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 func (cs *CacheServer) createResponseFromCache(cachedResp *cache.CachedResponse, req *http.Request) *http.Response {
 	return &http.Response{
 		StatusCode:    cachedResp.StatusCode,
-		Header:        cachedResp.Header.Clone(),
+		Header:        cachedResp.ResponseHeader.Clone(),
 		Body:          io.NopCloser(bytes.NewReader(cachedResp.Body)),
 		ContentLength: int64(len(cachedResp.Body)),
 		Request:       req,
@@ -75,7 +76,7 @@ func (cs *CacheServer) createResponseFromCache(cachedResp *cache.CachedResponse,
 	}
 }
 
-func (cs *CacheServer) cacheResponseFromReader(key string, resp *http.Response, header *cache.ParsedHeaders) {
+func (cs *CacheServer) cacheResponseFromReader(key string, req *http.Request, resp *http.Response, header *cache.ParsedHeaders) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("Failed to read response body for caching: %v", err)
@@ -85,7 +86,7 @@ func (cs *CacheServer) cacheResponseFromReader(key string, resp *http.Response, 
 
 	resp.Body = io.NopCloser(bytes.NewReader(body))
 
-	cs.cacheResponse(key, resp, header, body)
+	cs.cacheResponse(key, req, resp, header, body)
 }
 
 func (cs *CacheServer) Handler(originURL *url.URL) http.Handler {
@@ -125,9 +126,10 @@ func (cs *CacheServer) serveCachedResponse(w http.ResponseWriter, r *http.Reques
 	}
 
 	reqHeaderStruct := cache.NewParsedHeaders(r.Header)
-	respHeader := cache.NewParsedHeaders(cachedResp.Header)
+	originalReqHeaderStruct := cache.NewParsedHeaders(cachedResp.RequestHeader)
+	respHeader := cache.NewParsedHeaders(cachedResp.ResponseHeader)
 
-	if !cache.IsFresh(cachedResp) || !cache.IsReqAllowedToUseCache(reqHeaderStruct, respHeader) {
+	if !cache.IsFresh(cachedResp) || !cache.IsReqAllowedToUseCache(reqHeaderStruct, originalReqHeaderStruct, respHeader) {
 		return false
 	}
 
@@ -161,7 +163,7 @@ func (cs *CacheServer) fetchAndCache(w http.ResponseWriter, r *http.Request, ori
 
 	if cache.IsCacheable(resp.Request.Method, headerStruct) {
 		key := cache.GenerateCacheKey(r.URL.String(), headerStruct)
-		cs.cacheResponse(key, resp, headerStruct, body)
+		cs.cacheResponse(key, r, resp, headerStruct, body)
 	}
 }
 
@@ -176,14 +178,15 @@ func (cs *CacheServer) buildOriginRequest(r *http.Request, originURL *url.URL) *
 	return req
 }
 
-func (cs *CacheServer) cacheResponse(key string, resp *http.Response, header *cache.ParsedHeaders, body []byte) {
+func (cs *CacheServer) cacheResponse(key string, req *http.Request, resp *http.Response, header *cache.ParsedHeaders, body []byte) {
 	age := header.GetValidatedAge()
 	cached := &cache.CachedResponse{
-		StatusCode: resp.StatusCode,
-		Header:     resp.Header.Clone(),
-		Body:       body,
-		StoredAt:   time.Now(),
-		InitialAge: age,
+		StatusCode:     resp.StatusCode,
+		RequestHeader:  req.Header.Clone(),
+		ResponseHeader: resp.Header.Clone(),
+		Body:           body,
+		StoredAt:       time.Now(),
+		InitialAge:     age,
 	}
 	cs.cacheStore.Set(key, cached)
 }
@@ -211,7 +214,7 @@ func (cs *CacheServer) copyHeaders(w http.ResponseWriter, resp *http.Response) {
 }
 
 func (cs *CacheServer) copyHeadersFromCache(w http.ResponseWriter, cachedResp *cache.CachedResponse) {
-	for k, vals := range cachedResp.Header {
+	for k, vals := range cachedResp.ResponseHeader {
 		for _, v := range vals {
 			w.Header().Add(k, v)
 		}
