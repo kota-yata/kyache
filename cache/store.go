@@ -84,7 +84,7 @@ func HeadersIdentical(storedHeader, incomingHeader *http.Header) bool {
 func IsReqAllowedToUseCache(reqHeader, respHeader *ParsedHeaders) bool {
 	// When Authorization header is present, the request cannot be responded with cache unless
 	// any of public, must-revalidate, or s-maxage directive is present in the response header.
-	_, reqHasAuthorization := reqHeader.GetValue("Authorization")
+	_, reqHasAuthorization := reqHeader.GetDirectives("Authorization")
 	if reqHasAuthorization {
 		_, respHasPublic := respHeader.GetDirective("Cache-Control", "public")
 		_, respHasMustRevalidate := respHeader.GetDirective("Cache-Control", "must-revalidate")
