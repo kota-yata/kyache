@@ -64,15 +64,17 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (cs *CacheServer) createResponseFromCache(cachedResp *cache.CachedResponse, req *http.Request) *http.Response {
+	header := cachedResp.RequestHeader.Clone()
+	header.Set("Age", strconv.Itoa(cache.GetCurrentAge(cachedResp)))
 	return &http.Response{
 		StatusCode:    cachedResp.StatusCode,
-		Header:        cachedResp.ResponseHeader.Clone(),
+		Header:        header,
 		Body:          io.NopCloser(bytes.NewReader(cachedResp.Body)),
 		ContentLength: int64(len(cachedResp.Body)),
 		Request:       req,
-		ProtoMajor:    2,
-		ProtoMinor:    0,
-		Proto:         "HTTP/2.0",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Proto:         "HTTP/1.1",
 	}
 }
 
@@ -192,10 +194,10 @@ func (cs *CacheServer) cacheResponse(key string, req *http.Request, resp *http.R
 }
 
 func (cs *CacheServer) writeCachedResponse(w http.ResponseWriter, cachedResp *cache.CachedResponse) {
-	age := cache.GetAgeSinceStoredAt(cachedResp)
+	age := cache.GetCurrentAge(cachedResp)
 	cs.copyHeadersFromCache(w, cachedResp)
-	w.WriteHeader(cachedResp.StatusCode)
 	w.Header().Set("Age", strconv.Itoa(age))
+	w.WriteHeader(cachedResp.StatusCode)
 	w.Write(cachedResp.Body)
 }
 
