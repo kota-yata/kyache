@@ -49,7 +49,7 @@ func HeadersMeetVaryConstraints(reqHeader, originalReqHeader, respHeader *Parsed
 	log.Printf("Vary header found: %v", vary)
 	// If Vary header is "*", it means the response is not cacheable in the first place
 	// This should not happen in practice, but we handle it just in case
-	if vary[0] == "*" {
+	if respHeader.IsVaryWildcard() {
 		return false
 	}
 	for _, field := range vary {
@@ -113,8 +113,7 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 		return false
 	}
 
-	vary, hasVary := header.GetValue("Vary")
-	if hasVary && vary[0] == "*" {
+	if header.IsVaryWildcard() {
 		// Vary: * means the response is not cacheable
 		return false
 	}

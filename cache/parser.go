@@ -142,3 +142,11 @@ func (p *ParsedHeaders) GetValidatedAge() int {
 	}
 	return age
 }
+
+func (p *ParsedHeaders) IsVaryWildcard() bool {
+	vary, ok := p.GetValue("Vary")
+	if !ok || len(vary) == 0 {
+		return false
+	}
+	return slices.Contains(vary, "*")
+}
