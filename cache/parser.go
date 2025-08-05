@@ -2,6 +2,7 @@ package cache
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -101,7 +102,12 @@ func NewParsedHeaders(h http.Header) *ParsedHeaders {
 		} else if authorizationHeaders[lowerName] {
 			parsed[lowerName] = parseAuthorizationHeader(strings.Join(fullValue, " "))
 		} else {
-			values[lowerName] = fullValue
+			for _, value := range fullValue {
+				s := strings.Split(value, ",")
+				for _, v := range s {
+					values[lowerName] = append(values[lowerName], strings.TrimSpace(v))
+				}
+			}
 		}
 	}
 
