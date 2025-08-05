@@ -16,6 +16,14 @@ func IsFresh(resp *CachedResponse) bool {
 }
 
 func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
+	// Normal case: Cache-Control max-age
+	maxAge, hasMaxAge := headerStruct.GetDirective("Cache-Control", "max-age")
+	if hasMaxAge {
+		seconds, err := strconv.Atoi(maxAge)
+		if err == nil && seconds >= 0 {
+			return time.Duration(seconds) * time.Second
+		}
+	}
 	// CDN-Cache-Control
 	cdnMaxAge, hasCDNMaxAge := headerStruct.GetDirective("CDN-Cache-Control", "max-age")
 	if hasCDNMaxAge {
@@ -28,14 +36,6 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 	sMaxAge, hasSMaxAge := headerStruct.GetDirective("Cache-Control", "s-maxage")
 	if hasSMaxAge {
 		seconds, err := strconv.Atoi(sMaxAge)
-		if err == nil && seconds >= 0 {
-			return time.Duration(seconds) * time.Second
-		}
-	}
-	// Normal case: Cache-Control max-age
-	maxAge, hasMaxAge := headerStruct.GetDirective("Cache-Control", "max-age")
-	if hasMaxAge {
-		seconds, err := strconv.Atoi(maxAge)
 		if err == nil && seconds >= 0 {
 			return time.Duration(seconds) * time.Second
 		}
@@ -59,10 +59,6 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 		return 0
 	}
 	return d
-}
-
-func GetAgeSinceStoredAt(resp *CachedResponse) int {
-	return int(time.Since(resp.StoredAt).Seconds())
 }
 
 func ValidateAge(age string) bool {
