@@ -13,8 +13,9 @@ import (
 )
 
 type CacheServer struct {
-	cacheStore *cache.CacheStore
-	transport  http.RoundTripper
+	cacheStore   *cache.CacheStore
+	transport    http.RoundTripper
+	pathHandlers map[string]http.HandlerFunc
 }
 
 type Config struct {
@@ -27,10 +28,14 @@ func New(config *Config) *CacheServer {
 		transport = http.DefaultTransport
 	}
 
-	return &CacheServer{
-		cacheStore: cache.NewCacheStore(),
-		transport:  transport,
+	cs := &CacheServer{
+		cacheStore:   cache.NewCacheStore(),
+		transport:    transport,
+		pathHandlers: make(map[string]http.HandlerFunc),
 	}
+
+	cs.RegisterPath("/statusz", cs.handleStatus)
+	return cs
 }
 
 func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -93,6 +98,11 @@ func (cs *CacheServer) cacheResponseFromReader(key string, req *http.Request, re
 
 func (cs *CacheServer) Handler(originURL *url.URL) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if handler, exists := cs.pathHandlers[r.URL.Path]; exists {
+			handler(w, r)
+			return
+		}
+
 		if r.Method != http.MethodGet {
 			cs.proxyToOrigin(w, r, originURL)
 			return
@@ -221,4 +231,15 @@ func (cs *CacheServer) copyHeadersFromCache(w http.ResponseWriter, cachedResp *c
 			w.Header().Add(k, v)
 		}
 	}
+}
+
+func (cs *CacheServer) RegisterPath(path string, handler http.HandlerFunc) {
+	cs.pathHandlers[path] = handler
+}
+
+// default status handler for security camp 2025
+func (cs *CacheServer) handleStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok","cache":"running"}`))
 }
