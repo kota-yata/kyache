@@ -2,6 +2,7 @@ package kyache
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kota-yata/kyache/cache"
+	"github.com/quic-go/quic-go/http3"
 )
 
 type CacheServer struct {
@@ -19,13 +21,27 @@ type CacheServer struct {
 }
 
 type Config struct {
-	Transport http.RoundTripper
+	Transport   http.RoundTripper
+	EnableHTTP3 bool
+	TLSConfig   *tls.Config
 }
 
 func New(config *Config) *CacheServer {
 	transport := config.Transport
 	if transport == nil {
-		transport = http.DefaultTransport
+		if config.EnableHTTP3 {
+			tlsConfig := config.TLSConfig
+			if tlsConfig == nil {
+				tlsConfig = &tls.Config{
+					InsecureSkipVerify: true,
+				}
+			}
+			transport = &http3.Transport{
+				TLSClientConfig: tlsConfig,
+			}
+		} else {
+			transport = http.DefaultTransport
+		}
 	}
 
 	cs := &CacheServer{
@@ -71,13 +87,13 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 func (cs *CacheServer) createResponseFromCache(cachedResp *cache.CachedResponse, req *http.Request) *http.Response {
 	header := cachedResp.RequestHeader.Clone()
 	header.Set("Age", strconv.Itoa(cache.GetCurrentAge(cachedResp)))
-	
+
 	// Use stored protocol information, fallback to HTTP/1.1 if not available
 	protoMajor, protoMinor, proto := cachedResp.ProtoMajor, cachedResp.ProtoMinor, cachedResp.Proto
 	if proto == "" {
 		protoMajor, protoMinor, proto = 1, 1, "HTTP/1.1"
 	}
-	
+
 	return &http.Response{
 		StatusCode:    cachedResp.StatusCode,
 		Header:        header,
