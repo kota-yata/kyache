@@ -71,15 +71,22 @@ func (cs *CacheServer) RoundTrip(req *http.Request) (*http.Response, error) {
 func (cs *CacheServer) createResponseFromCache(cachedResp *cache.CachedResponse, req *http.Request) *http.Response {
 	header := cachedResp.RequestHeader.Clone()
 	header.Set("Age", strconv.Itoa(cache.GetCurrentAge(cachedResp)))
+	
+	// Use stored protocol information, fallback to HTTP/1.1 if not available
+	protoMajor, protoMinor, proto := cachedResp.ProtoMajor, cachedResp.ProtoMinor, cachedResp.Proto
+	if proto == "" {
+		protoMajor, protoMinor, proto = 1, 1, "HTTP/1.1"
+	}
+	
 	return &http.Response{
 		StatusCode:    cachedResp.StatusCode,
 		Header:        header,
 		Body:          io.NopCloser(bytes.NewReader(cachedResp.Body)),
 		ContentLength: int64(len(cachedResp.Body)),
 		Request:       req,
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Proto:         "HTTP/1.1",
+		ProtoMajor:    protoMajor,
+		ProtoMinor:    protoMinor,
+		Proto:         proto,
 	}
 }
 
@@ -199,6 +206,9 @@ func (cs *CacheServer) cacheResponse(key string, req *http.Request, resp *http.R
 		Body:           body,
 		StoredAt:       time.Now(),
 		InitialAge:     age,
+		ProtoMajor:     resp.ProtoMajor,
+		ProtoMinor:     resp.ProtoMinor,
+		Proto:          resp.Proto,
 	}
 	cs.cacheStore.Set(key, cached)
 }

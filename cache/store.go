@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"log"
 	"net/http"
 	"sort"
 	"sync"
@@ -15,6 +14,9 @@ type CachedResponse struct {
 	Body           []byte
 	StoredAt       time.Time
 	InitialAge     int
+	ProtoMajor     int
+	ProtoMinor     int
+	Proto          string
 }
 
 type CacheStore struct {
@@ -46,7 +48,6 @@ func HeadersMeetVaryConstraints(reqHeader, originalReqHeader, respHeader *Parsed
 	if !hasVary {
 		return true
 	}
-	log.Printf("Vary header found: %v", vary)
 	// If Vary header is "*", it means the response is not cacheable in the first place
 	// This should not happen in practice, but we handle it just in case
 	if respHeader.IsVaryWildcard() {
