@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	url         = flag.String("url", "https://kcdn.kota-yata.com:4443/", "URL to request")
+	url         = flag.String("url", "https://192.168.20.101:4443/", "URL to request")
 	keepAlive   = flag.Duration("keepalive", 30*time.Second, "Keep-alive period for QUIC connection")
 	idleTimeout = flag.Duration("idle", 60*time.Second, "Idle timeout for QUIC connection")
 	requests    = flag.Int("requests", 3, "Number of requests to make")
@@ -47,7 +47,7 @@ func main() {
 	for i := 1; i <= *requests; i++ {
 		fmt.Printf("=== Request %d/%d ===\n", i, *requests)
 		start := time.Now()
-		
+
 		resp, err := client.Get(*url)
 		if err != nil {
 			log.Printf("Request %d failed: %v", i, err)
@@ -63,13 +63,13 @@ func main() {
 		}
 
 		duration := time.Since(start)
-		
+
 		// Display results
 		fmt.Printf("Status: %s\n", resp.Status)
 		fmt.Printf("Protocol: %s\n", resp.Proto)
 		fmt.Printf("Request Duration: %v\n", duration)
 		fmt.Printf("Response Size: %d bytes\n", len(body))
-		
+
 		if i == 1 {
 			fmt.Printf("Headers:\n")
 			for k, v := range resp.Header {
@@ -77,15 +77,15 @@ func main() {
 			}
 			fmt.Printf("\nFirst Response Body:\n%s\n", string(body))
 		}
-		
+
 		fmt.Println()
-		
+
 		// Wait before next request (except for the last one)
 		if i < *requests {
 			fmt.Printf("Waiting %v before next request...\n\n", *interval)
 			time.Sleep(*interval)
 		}
 	}
-	
+
 	fmt.Printf("All requests completed. Connection should remain alive during the session.\n")
 }

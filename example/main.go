@@ -15,7 +15,7 @@ import (
 
 var (
 	originURLStr = flag.String("originURL", "https://localhost:8000", "Origin server URL")
-	listenAddr   = flag.String("listenAddr", ":8889", "Address to listen on")
+	listenAddr   = flag.String("listenAddr", ":4443", "Address to listen on")
 	enableHTTP3  = flag.Bool("http3", false, "Enable HTTP/3 support")
 	certFile     = flag.String("cert", "./certs/kcdn.kota-yata.com.pem", "TLS certificate file (required for HTTP/3)")
 	keyFile      = flag.String("key", "./certs/kcdn.kota-yata.com-key.pem", "TLS private key file (required for HTTP/3)")
