@@ -50,7 +50,12 @@ func main() {
 		if err != nil {
 			log.Printf("Error")
 		}
-		tr := quic.Transport{Conn: conn}
+		addr := conn.LocalAddr().(*net.UDPAddr)
+		tr := quic.Transport{
+			Conn:                  conn,
+			ConnectionIDLength:    8,
+			ConnectionIDGenerator: NewQLBCID(addr.IP, addr.Port),
+		}
 		cert, err := tls.LoadX509KeyPair(*certFile, *keyFile)
 		if err != nil {
 			log.Printf("Failed to load TLS certificate: %v", err)
