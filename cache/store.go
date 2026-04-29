@@ -7,6 +7,23 @@ import (
 	"time"
 )
 
+// defaultCacheableStatusCodes lists status codes that are cacheable by default per RFC9111 Section 3.2.
+// Other status codes require explicit freshness headers (e.g., max-age, Expires) to be cached.
+var defaultCacheableStatusCodes = map[int]bool{
+	http.StatusOK:                   true, // 200
+	http.StatusNonAuthoritativeInfo: true, // 203
+	http.StatusNoContent:            true, // 204
+	http.StatusPartialContent:       true, // 206
+	http.StatusMultipleChoices:      true, // 300
+	http.StatusMovedPermanently:     true, // 301
+	http.StatusPermanentRedirect:    true, // 308
+	http.StatusNotFound:             true, // 404
+	http.StatusMethodNotAllowed:     true, // 405
+	http.StatusGone:                 true, // 410
+	http.StatusRequestURITooLong:    true, // 414
+	http.StatusNotImplemented:       true, // 501
+}
+
 type CachedResponse struct {
 	StatusCode     int
 	RequestHeader  http.Header
@@ -39,6 +56,13 @@ func (cs *CacheStore) Set(key string, resp *CachedResponse) {
 	cs.mu.Lock()
 	defer cs.mu.Unlock()
 	cs.store[key] = resp
+}
+
+// Delete removes a cached entry by key (RFC9111 Section 4.4).
+func (cs *CacheStore) Delete(key string) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+	delete(cs.store, key)
 }
 
 // Comparing stored header and request header. see Section 4.1 for the detail
@@ -95,14 +119,54 @@ func IsReqAllowedToUseCache(reqHeader, originalReqHeader, respHeader *ParsedHead
 	return true
 }
 
-func IsCacheable(method string, header *ParsedHeaders) bool {
-	if method != http.MethodGet {
-		return false
-	}
-	_, hasNoCache := header.GetDirective("Cache-Control", "no-cache")
+// ReqNeedsRevalidation returns true if the request requires the cache to revalidate the
+// stored response with the origin server before serving (RFC9111 Section 5.2.1.4).
+// Pragma: no-cache is treated as Cache-Control: no-cache when Cache-Control is absent (RFC9111 Section 5.4).
+func ReqNeedsRevalidation(reqHeader *ParsedHeaders) bool {
+	_, hasNoCache := reqHeader.GetDirective("Cache-Control", "no-cache")
 	if hasNoCache {
-		// TODO: Handle "no-cache" directive according to RFC 9111
-		// Need interpretation of the section 5.2.1.4.
+		return true
+	}
+	// Only honour Pragma when Cache-Control is absent (RFC9111 Section 5.4)
+	_, hasCacheControl := reqHeader.GetDirectives("Cache-Control")
+	if !hasCacheControl {
+		_, hasPragmaNoCache := reqHeader.GetDirective("Pragma", "no-cache")
+		if hasPragmaNoCache {
+			return true
+		}
+	}
+	return false
+}
+
+// RespNeedsRevalidation returns true if the cached response must be revalidated before
+// it is served, regardless of freshness (RFC9111 Section 5.2.2.4).
+func RespNeedsRevalidation(respHeader *ParsedHeaders) bool {
+	_, hasNoCache := respHeader.GetDirective("Cache-Control", "no-cache")
+	return hasNoCache
+}
+
+// MustRevalidateStale returns true if a stale response MUST be revalidated and cannot be
+// served even when the request would allow stale via max-stale (RFC9111 Section 5.2.2.2
+// and Section 5.2.2.8).
+func MustRevalidateStale(respHeader *ParsedHeaders) bool {
+	_, hasMustRevalidate := respHeader.GetDirective("Cache-Control", "must-revalidate")
+	if hasMustRevalidate {
+		return true
+	}
+	_, hasProxyRevalidate := respHeader.GetDirective("Cache-Control", "proxy-revalidate")
+	return hasProxyRevalidate
+}
+
+// hasExplicitFreshness returns true if the response carries explicit freshness information.
+func hasExplicitFreshness(header *ParsedHeaders) bool {
+	_, hasSMaxAge := header.GetDirective("Cache-Control", "s-maxage")
+	_, hasMaxAge := header.GetDirective("Cache-Control", "max-age")
+	_, hasExpires := header.GetValue("Expires")
+	return hasSMaxAge || hasMaxAge || hasExpires
+}
+
+func IsCacheable(method string, statusCode int, header *ParsedHeaders) bool {
+	if method != http.MethodGet {
 		return false
 	}
 	_, hasNoStore := header.GetDirective("Cache-Control", "no-store")
@@ -119,11 +183,6 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 		return false
 	}
 
-	_, hasCdnNoCache := header.GetDirective("CDN-Cache-Control", "no-cache")
-	if hasCdnNoCache {
-		// TODO: Handle "no-cache" directive according to RFC 9111
-		return false
-	}
 	_, hasCdnNoStore := header.GetDirective("CDN-Cache-Control", "no-store")
 	if hasCdnNoStore {
 		return false
@@ -131,6 +190,11 @@ func IsCacheable(method string, header *ParsedHeaders) bool {
 	_, hasCdnPrivate := header.GetDirective("CDN-Cache-Control", "private")
 	if hasCdnPrivate {
 		return false
+	}
+
+	// For non-default-cacheable status codes, require explicit freshness headers (RFC9111 Section 3.2)
+	if !defaultCacheableStatusCodes[statusCode] {
+		return hasExplicitFreshness(header)
 	}
 
 	return true

@@ -85,6 +85,17 @@ var authorizationHeaders = map[string]bool{
 	"authorization": true,
 }
 
+// dateHeaders lists headers whose values contain HTTP-date strings (RFC9110 §5.6.7).
+// These must not be split on commas because the HTTP-date format includes a comma
+// (e.g. "Wed, 21 Oct 2015 07:28:00 GMT").
+var dateHeaders = map[string]bool{
+	"date":                true,
+	"expires":             true,
+	"last-modified":       true,
+	"if-modified-since":   true,
+	"if-unmodified-since": true,
+}
+
 func NewParsedHeaders(h http.Header) *ParsedHeaders {
 	parsed := make(map[string]map[string]string)
 	values := make(map[string][]string)
@@ -101,6 +112,9 @@ func NewParsedHeaders(h http.Header) *ParsedHeaders {
 			parsed[lowerName] = parseDirectives(strings.Join(fullValue, ","))
 		} else if authorizationHeaders[lowerName] {
 			parsed[lowerName] = parseAuthorizationHeader(strings.Join(fullValue, " "))
+		} else if dateHeaders[lowerName] {
+			// Store date headers as-is without splitting on commas
+			values[lowerName] = fullValue
 		} else {
 			for _, value := range fullValue {
 				s := strings.Split(value, ",")
