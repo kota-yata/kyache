@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	url         = flag.String("url", "https://kcdn.kota-yata.com:4443/", "URL to request")
+	url         = flag.String("url", "https://192.168.20.101:4443/", "URL to request")
 	keepAlive   = flag.Duration("keepalive", 30*time.Second, "Keep-alive period for QUIC connection")
 	idleTimeout = flag.Duration("idle", 60*time.Second, "Idle timeout for QUIC connection")
 	requests    = flag.Int("requests", 3, "Number of requests to make")
