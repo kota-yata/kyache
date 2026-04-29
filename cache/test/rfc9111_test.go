@@ -84,20 +84,8 @@ func TestGetFreshnessLifetimeFallsBackToHeuristic(t *testing.T) {
 
 // ---- IsFreshEnoughForRequest (RFC9111 Section 5.2.1) ----
 
-func makeCachedResp(maxAge int, storedSecondsAgo int) *cache.CachedResponse {
-	h := http.Header{}
-	if maxAge >= 0 {
-		h.Set("Cache-Control", "max-age="+itoa(maxAge))
-	}
-	return &cache.CachedResponse{
-		ResponseHeader: h,
-		StoredAt:       time.Now().Add(-time.Duration(storedSecondsAgo) * time.Second),
-	}
-}
-
-func itoa(n int) string {
-	return http.Header{}.Get("X-Fake") // won't be called, just satisfies compiler
-}
+// makeCachedResp and itoa are unused helpers kept only for documentary purposes.
+// The actual tests build CachedResponse inline.
 
 func TestIsFreshEnoughForRequest(t *testing.T) {
 	// Response stored 10 s ago with max-age=60 → age=10, remaining=50

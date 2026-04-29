@@ -97,7 +97,7 @@ func IsFreshEnoughForRequest(cachedResp *CachedResponse, reqHeader *ParsedHeader
 	// Request max-age: the response must not be older than the specified number of seconds
 	if maxAgeStr, hasMaxAge := reqHeader.GetDirective("Cache-Control", "max-age"); hasMaxAge {
 		maxAge, err := strconv.Atoi(maxAgeStr)
-		if err == nil && maxAge >= 0 && currentAge >= maxAge {
+		if err == nil && maxAge >= 0 && currentAge > maxAge {
 			return false
 		}
 	}
