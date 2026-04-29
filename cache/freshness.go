@@ -6,16 +6,28 @@ import (
 	"time"
 )
 
-// see freshness.md for what this functions do
+// see freshness.md for what these functions do
 
 func IsFresh(resp *CachedResponse) bool {
 	headerStruct := NewParsedHeaders(resp.ResponseHeader)
-	freshFor := GetFreshnessLifetime(headerStruct)
+	freshFor := GetFreshnessLifetimeForStatus(headerStruct, resp.StatusCode)
 	currentAge := time.Duration(GetCurrentAge(resp)) * time.Second
 	return freshFor > 0 && currentAge < freshFor
 }
 
 func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
+	return getExplicitFreshnessLifetime(headerStruct)
+}
+
+func GetFreshnessLifetimeForStatus(headerStruct *ParsedHeaders, statusCode int) time.Duration {
+	freshFor := getExplicitFreshnessLifetime(headerStruct)
+	if freshFor > 0 || hasExplicitFreshness(headerStruct) {
+		return freshFor
+	}
+	return getHeuristicFreshnessLifetime(headerStruct, statusCode)
+}
+
+func getExplicitFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 	// CDN-Cache-Control
 	cdnMaxAge, hasCDNMaxAge := headerStruct.GetDirective("CDN-Cache-Control", "max-age")
 	if hasCDNMaxAge {
@@ -59,6 +71,73 @@ func GetFreshnessLifetime(headerStruct *ParsedHeaders) time.Duration {
 		return 0
 	}
 	return d
+}
+
+func hasExplicitFreshness(headerStruct *ParsedHeaders) bool {
+	if _, ok := headerStruct.GetDirective("CDN-Cache-Control", "max-age"); ok {
+		return true
+	}
+	if _, ok := headerStruct.GetDirective("Cache-Control", "s-maxage"); ok {
+		return true
+	}
+	if _, ok := headerStruct.GetDirective("Cache-Control", "max-age"); ok {
+		return true
+	}
+	if _, ok := headerStruct.GetValue("Expires"); ok {
+		return true
+	}
+	return false
+}
+
+func getHeuristicFreshnessLifetime(headerStruct *ParsedHeaders, statusCode int) time.Duration {
+	if !isHeuristicFreshnessAllowed(headerStruct, statusCode) {
+		return 0
+	}
+
+	dateStr, hasDate := headerStruct.GetValue("Date")
+	lastModifiedStr, hasLastModified := headerStruct.GetValue("Last-Modified")
+	if !hasDate || !hasLastModified || dateStr[0] == "" || lastModifiedStr[0] == "" {
+		return 0
+	}
+
+	dateTime, err1 := http.ParseTime(dateStr[0])
+	lastModifiedTime, err2 := http.ParseTime(lastModifiedStr[0])
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+
+	ageSinceLastModified := dateTime.Sub(lastModifiedTime)
+	if ageSinceLastModified <= 0 {
+		return 0
+	}
+	return ageSinceLastModified / 10 // 10% * (Date - Last-Modified)
+}
+
+func isHeuristicFreshnessAllowed(headerStruct *ParsedHeaders, statusCode int) bool {
+	if _, ok := headerStruct.GetDirective("Cache-Control", "public"); ok {
+		return true
+	}
+	return isHeuristicallyCacheableStatus(statusCode)
+}
+
+func isHeuristicallyCacheableStatus(statusCode int) bool {
+	switch statusCode {
+	case http.StatusOK,
+		http.StatusNonAuthoritativeInfo,
+		http.StatusNoContent,
+		http.StatusPartialContent,
+		http.StatusMultipleChoices,
+		http.StatusMovedPermanently,
+		http.StatusPermanentRedirect,
+		http.StatusNotFound,
+		http.StatusMethodNotAllowed,
+		http.StatusGone,
+		http.StatusRequestURITooLong,
+		http.StatusNotImplemented:
+		return true
+	default:
+		return false
+	}
 }
 
 func ValidateAge(age string) bool {

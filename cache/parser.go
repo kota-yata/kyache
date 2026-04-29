@@ -76,13 +76,21 @@ func parseAuthorizationHeader(headerValue string) map[string]string {
 }
 
 var directiveHeaders = map[string]bool{
-	"cache-control": true,
-	"pragma":        true,
-	"warning":       true,
+	"cache-control":     true,
+	"cdn-cache-control": true,
+	"pragma":            true,
+	"warning":           true,
 }
 
 var authorizationHeaders = map[string]bool{
 	"authorization": true,
+}
+
+var singleValueHeaders = map[string]bool{
+	"age":           true,
+	"date":          true,
+	"expires":       true,
+	"last-modified": true,
 }
 
 func NewParsedHeaders(h http.Header) *ParsedHeaders {
@@ -101,6 +109,10 @@ func NewParsedHeaders(h http.Header) *ParsedHeaders {
 			parsed[lowerName] = parseDirectives(strings.Join(fullValue, ","))
 		} else if authorizationHeaders[lowerName] {
 			parsed[lowerName] = parseAuthorizationHeader(strings.Join(fullValue, " "))
+		} else if singleValueHeaders[lowerName] {
+			for _, value := range fullValue {
+				values[lowerName] = append(values[lowerName], strings.TrimSpace(value))
+			}
 		} else {
 			for _, value := range fullValue {
 				s := strings.Split(value, ",")

@@ -19,3 +19,8 @@ freshness_lifetime is determined with following priority:
 - Expires - Date
   - If max-age directive is not present, Expire - Date will be the freshness_lifetime
   - This applies only when both Expire and Date are present. Otherwise freshness_lifetime will be 0
+
+### heuristic freshness
+When explicit freshness is not present, a heuristic freshness_lifetime can be used for responses whose status codes are heuristically cacheable and for responses marked explicitly cacheable with `Cache-Control: public`.
+
+This cache uses `10% * (Date - Last-Modified)` as the heuristic freshness_lifetime when both `Date` and `Last-Modified` are valid HTTP dates. If `Cache-Control: max-age`, `Cache-Control: s-maxage`, `CDN-Cache-Control: max-age`, or `Expires` is present, heuristic freshness is not used.
