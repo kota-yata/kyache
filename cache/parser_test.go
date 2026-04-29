@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
-
-	"github.com/kota-yata/kyache/cache"
 )
 
 func TestGetDirective(t *testing.T) {
@@ -101,7 +99,7 @@ func TestGetDirective(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed := cache.NewParsedHeaders(tt.headers)
+			parsed := NewParsedHeaders(tt.headers)
 			value, exists := parsed.GetDirective(tt.headerName, tt.directiveName)
 
 			if exists != tt.expectedExists {
@@ -190,7 +188,7 @@ func TestGetValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed := cache.NewParsedHeaders(tt.headers)
+			parsed := NewParsedHeaders(tt.headers)
 			value, exists := parsed.GetValue(tt.headerName)
 
 			if exists != tt.expectedExists {
@@ -214,7 +212,7 @@ func TestMixedHeaderTypes(t *testing.T) {
 		"Pragma":        []string{"no-cache"},
 	}
 
-	parsed := cache.NewParsedHeaders(headers)
+	parsed := NewParsedHeaders(headers)
 
 	maxAge, exists := parsed.GetDirective("Cache-Control", "max-age")
 	if !exists || maxAge != "3600" {
@@ -309,7 +307,7 @@ func TestAuthorizationHeaderParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed := cache.NewParsedHeaders(tt.headers)
+			parsed := NewParsedHeaders(tt.headers)
 
 			_, exists := parsed.GetDirectives("Authorization")
 			if !exists {
@@ -347,7 +345,7 @@ func TestAuthorizationHeaderCaseInsensitive(t *testing.T) {
 		"authorization": []string{"Basic dGVzdDp0ZXN0"},
 	}
 
-	parsed := cache.NewParsedHeaders(headers)
+	parsed := NewParsedHeaders(headers)
 
 	scheme, exists := parsed.GetDirective("AUTHORIZATION", "scheme")
 	if !exists || scheme != "basic" {
