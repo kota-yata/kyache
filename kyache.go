@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kota-yata/kyache/cache"
+	cache "github.com/kota-yata/kyache/src"
 	"github.com/quic-go/quic-go/http3"
 )
 
